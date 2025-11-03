@@ -1,4 +1,5 @@
-{
+# If you're in your project directory
+echo '{
   "version": 2,
   "builds": [
     {
@@ -15,10 +16,7 @@
       "dest": "/index.html"
     }
   ],
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
-}
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install"
+}' > vercel.json
