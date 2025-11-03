@@ -14,7 +14,8 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    emptyOutDir: true,
   },
-  // Use relative path for production
+  // Important for subdirectory deployment
   base: './',
 })
