@@ -1,8 +1,34 @@
 import { io, Socket } from 'socket.io-client';
 
-// Use direct URLs for development
-const API_BASE_URL = 'http://localhost:5000/api';
-const SOCKET_URL = 'http://localhost:5000';
+// Dynamic URLs based on environment
+const getApiBaseUrl = () => {
+  // Use environment variable in production
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // Use relative path if no env var (for production with same domain)
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
+  // Fallback to localhost in development
+  return 'http://localhost:5000/api';
+};
+
+const getSocketUrl = () => {
+  // Use environment variable in production
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace('/api', '');
+  }
+  // Use same origin if no env var (for production with same domain)
+  if (import.meta.env.PROD) {
+    return window.location.origin;
+  }
+  // Fallback to localhost in development
+  return 'http://localhost:5000';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+const SOCKET_URL = getSocketUrl();
 
 class ApiService {
   private socket: Socket | null = null;
@@ -19,7 +45,10 @@ class ApiService {
     };
 
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+      const url = `${API_BASE_URL}${endpoint}`;
+      console.log('🌐 API Request:', url); // Debug log
+      
+      const response = await fetch(url, config);
       
       // Handle 204 No Content responses
       if (response.status === 204) {
@@ -35,6 +64,7 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('API request failed:', error);
+      console.error('Request details:', { endpoint, API_BASE_URL });
       throw error;
     }
   }
@@ -238,8 +268,9 @@ class ApiService {
     }
 
     const token = localStorage.getItem('token');
+    const uploadUrl = `${API_BASE_URL}/upload`;
     
-    const response = await fetch(`${API_BASE_URL}/upload`, {
+    const response = await fetch(uploadUrl, {
       method: 'POST',
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -276,6 +307,7 @@ class ApiService {
   // Socket.io methods
   connectSocket() {
     if (!this.socket) {
+      console.log('🔌 Connecting socket to:', SOCKET_URL); // Debug log
       this.socket = io(SOCKET_URL, {
         auth: {
           token: localStorage.getItem('token'),
@@ -297,14 +329,24 @@ class ApiService {
     return this.socket?.connected || false;
   }
 
+  // Get current API configuration (for debugging)
+  getConfig() {
+    return {
+      API_BASE_URL,
+      SOCKET_URL,
+      isProduction: import.meta.env.PROD,
+      hasEnvVar: !!import.meta.env.VITE_API_URL
+    };
+  }
+
   // Error handling wrapper
   async withErrorHandling<T>(apiCall: () => Promise<T>): Promise<T> {
     try {
       return await apiCall();
     } catch (error: any) {
       // Handle specific error cases
-      if (error.message?.includes('Network Error')) {
-        throw new Error('Unable to connect to server. Please check your internet connection.');
+      if (error.message?.includes('Network Error') || error.message?.includes('Failed to fetch')) {
+        throw new Error(`Unable to connect to server at ${API_BASE_URL}. Please check your connection.`);
       }
       
       if (error.message?.includes('401')) {
