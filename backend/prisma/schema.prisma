@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  createdTrips  Trip[]         @relation("TripOwner")
+  tripMembers   TripMember[]
+  expenses      Expense[]      @relation("ExpensePaidBy")
+  expenseSplits ExpenseSplit[]
+}
+
+model Trip {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  destination String
+  startDate   DateTime
+  endDate     DateTime
+  budget      Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  owner   User   @relation("TripOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String
+
+  members    TripMember[]
+  activities Activity[]
+  expenses   Expense[]
+}
+
+model TripMember {
+  id     String @id @default(cuid())
+  role   String @default("MEMBER") // OWNER, MEMBER
+  status String @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripId String
+
+  @@unique([userId, tripId])
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  location    String?
+  cost        Float?
+  date        DateTime
+  startTime   String?
+  endTime     String?
+  category    String? // SIGHTSEEING, FOOD, TRANSPORT, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripId String
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  description String
+  amount      Float
+  date        DateTime @default(now())
+  category    String? // FOOD, TRANSPORT, ACCOMMODATION, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  paidBy   User   @relation("ExpensePaidBy", fields: [paidById], references: [id], onDelete: Cascade)
+  paidById String
+
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripId String
+
+  splits ExpenseSplit[]
+}
+
+model ExpenseSplit {
+  id      String  @id @default(cuid())
+  amount  Float
+  settled Boolean @default(false)
+
+  // Relations
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  expenseId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@unique([expenseId, userId])
+}
+
